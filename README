@@ -1,0 +1,223 @@
+This is Lab 1 99% complete. 
+Here is how to use it.
+# Terraform Lab – Usage Guide
+
+> ⚠️ **Important:** This lab is designed to be reused in **your own AWS account**. Before running `terraform apply`, you **must customize several values** so resources are created correctly and safely.
+
+---
+
+## 📌 Prerequisites
+
+Before using this lab, make sure you have:
+
+* An AWS account
+* AWS CLI configured (`aws configure`)
+* Terraform installed (v1.x recommended)
+* A **registered domain name** (if using Route 53 / ACM / CloudFront)
+
+---
+
+## 1️⃣ Update the SNS Email Subscription
+
+If this lab creates an **SNS topic with an email subscription**, you must replace the email address with your own.
+
+### What to change
+
+Locate the SNS subscription and update the email endpoint:
+
+```hcl
+endpoint = "your-email@example.com"
+```
+
+### After Apply
+
+AWS will send a **confirmation email**. The subscription will not activate until you confirm it.
+
+---
+
+## 2️⃣ Update Domain-Related Variables
+
+Any variables related to:
+
+* Domain names
+* Hosted zones
+* Subdomains
+* ACM certificates
+
+must be updated to a **domain you own and have registered**.
+
+### Example
+
+```hcl
+variable "domain_name" {
+  default = "example.com"
+}
+```
+
+⚠️ Using a domain you do not own will cause **DNS and certificate validation failures**.
+
+---
+
+## 3️⃣ Change All S3 Bucket Names (REQUIRED)
+
+S3 bucket names are **globally unique across AWS**.
+
+### What to do
+
+Update every S3 bucket name to something unique.
+
+Recommended pattern:
+
+```hcl
+my-project-${var.env}-${random_id.this.hex}
+```
+
+If you do not change bucket names, Terraform will fail with:
+
+```
+BucketAlreadyExists
+```
+
+---
+
+## 🚨 IMPORTANT: Manual EC2 Attachment for the Private Subnet ASG
+
+> **This step is REQUIRED for the lab to function as intended.**
+
+The Auto Scaling Group (ASG) created for the **private subnet** expects EC2 instances to be **manually attached** during this lab.
+
+### What you must do
+
+After creating or identifying the EC2 instance intended to run in the **private subnet**:
+
+1. Open the **EC2 Console**
+2. Select the EC2 instance
+3. Choose **Actions → Instance settings → Attach to Auto Scaling group**
+4. Select the ASG created by this Terraform lab
+5. Complete the attachment
+
+### Why this is important
+
+* The ASG **will not manage the instance** unless it is attached
+* Health checks, scaling behavior, and lifecycle management will not apply
+* The lab is designed to demonstrate **manual ASG attachment and ownership**
+
+⚠️ **Do not attach your golden AMI builder or any public subnet EC2 instance to this ASG.**
+Doing so may cause the instance to be **terminated automatically** by the ASG.
+
+---
+
+## 4️⃣ Customize Variables
+
+This lab is intentionally configurable. You are encouraged to change:
+
+* Instance sizes
+* Auto Scaling Group min / max / desired capacity
+* CIDR blocks
+* Logging destinations (S3 vs CloudWatch)
+* Feature flags (WAF, logging, alarms, etc.)
+
+Review `variables.tf` carefully before applying.
+
+---
+
+## 5️⃣ Importing Existing AWS Resources
+
+In some cases, AWS resources may already exist or Terraform may not automatically receive a resource identifier.
+
+You may see errors such as:
+
+```
+Resource already exists
+No resource identifier returned
+```
+
+In these cases, you must **import the resource into Terraform state**.
+
+### General Syntax
+
+```bash
+terraform import <resource_type>.<resource_name> <aws_resource_id>
+```
+
+### Common Examples
+
+**Route 53 Hosted Zone**
+
+```bash
+terraform import aws_route53_zone.main Z123456ABCDEFG
+```
+
+**S3 Bucket**
+
+```bash
+terraform import aws_s3_bucket.logs my-existing-bucket-name
+```
+
+**ACM Certificate**
+
+```bash
+terraform import aws_acm_certificate.cert arn:aws:acm:region:account:certificate/xxxx
+```
+
+After importing, always run:
+
+```bash
+terraform plan
+```
+
+and confirm no unexpected changes appear.
+
+---
+
+## 6️⃣ If Terraform Wants to Destroy Something Unexpected
+
+🚨 **Stop immediately** if `terraform plan` shows:
+
+* Destruction of critical resources
+* Forced replacement of infrastructure you care about
+
+Checklist:
+
+* Verify variable values
+* Review `count` and `for_each` conditions
+* Confirm imports were successful
+* Ensure you are in the correct AWS account
+
+Never apply blindly.
+
+---
+
+## 7️⃣ Recommended Workflow
+
+```bash
+terraform init
+terraform validate
+terraform plan
+terraform apply
+```
+
+For updates:
+
+```bash
+terraform plan
+terraform apply
+```
+
+---
+
+## 🧠 Learning Notes
+
+* This lab reflects **real-world AWS + Terraform patterns**
+* Resources are intentionally modular and conditional
+* Breaking and rebuilding (safely) is part of the learning process
+
+---
+
+## 🎉 Enjoy the Code
+
+Feel free to explore, modify, and extend this lab.
+
+If something breaks, use it as an opportunity to learn how AWS and Terraform really behave.
+
+Happy building 🚀
