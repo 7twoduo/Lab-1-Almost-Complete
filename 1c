@@ -61,10 +61,10 @@ resource "aws_s3_bucket_policy" "lb_bucket_policy" {
   })
 }
 
-import {
-  to = aws_lb.hidden_alb
-  id = "arn:aws:elasticloadbalancing:us-east-1:814910273374:loadbalancer/app/LoadExternal/9b9985b57737311d"
-}
+#import {
+#  to = aws_lb.hidden_alb
+#  id = "arn:aws:elasticloadbalancing:us-east-1:814910273374:loadbalancer/app/LoadExternal/9b9985b57737311d"
+#}
 
 resource "aws_lb" "hidden_alb" {
   name               = "LoadExternal"
@@ -112,7 +112,7 @@ resource "aws_lb_target_group" "hidden_target_group" {
 #                                   Listeners for TARGET GROUP
 import {
   to = aws_route53_zone.primary
-  id = "Z01595683I7EKJ2I7F3JO"
+  id = "Your Registered Domain (identifier)"
 }
 
 resource "aws_route53_zone" "primary" {
