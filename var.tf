@@ -58,7 +58,7 @@ variable "db_username" {
 variable "sns_email" {
   description = ""
   type        = string
-  default     = "markedsync@gmail.com"
+  default     = "your@email.com"
   #Remember you have to confirm your subscription for this to work
 }
 variable "secret_location" {
@@ -69,7 +69,7 @@ variable "secret_location" {
 variable "s3_bucket" {
   description = "The name of the S3 bucket to create"
   type        = string
-  default     = "unlimitedendlessvoid"
+  default     = "input value"
 }
 variable "s3_bucket_no_access" {
   description = "No public access to bucket"
@@ -79,12 +79,12 @@ variable "s3_bucket_no_access" {
 variable "root_domain_name" {
   description = "The domain name for the ALB"
   type        = string
-  default     = "unshieldedhollow.click"
+  default     = "example = unshieldedhollow.click"
 }
 variable "route53_domain_name" {
   description = "value"
   type        = string
-  default     = "www.unshieldedhollow.click"
+  default     = "example = www.unshieldedhollow.click"
 }
 
 variable "alb_domain_name" {
