@@ -82,28 +82,7 @@ BucketAlreadyExists
 
 ## 🚨 IMPORTANT: Manual EC2 Attachment for the Private Subnet ASG
 
-> **This step is REQUIRED for the lab to function as intended.**
-
-The Auto Scaling Group (ASG) created for the **private subnet** expects EC2 instances to be **manually attached** during this lab.
-
-### What you must do
-
-After creating or identifying the EC2 instance intended to run in the **private subnet**:
-
-1. Open the **EC2 Console**
-2. Select the EC2 instance
-3. Choose **Actions → Instance settings → Attach to Auto Scaling group**
-4. Select the ASG created by this Terraform lab
-5. Complete the attachment
-
-### Why this is important
-
-* The ASG **will not manage the instance** unless it is attached
-* Health checks, scaling behavior, and lifecycle management will not apply
-* The lab is designed to demonstrate **manual ASG attachment and ownership**
-
-⚠️ **Do not attach your golden AMI builder or any public subnet EC2 instance to this ASG.**
-Doing so may cause the instance to be **terminated automatically** by the ASG.
+#Go to the ec2 instance that is in the ASG for the private subnet, attach the appropriate EC2 IAM Role EC2_RDS. Reboot the Instance so the Userdata script restarts and runs properly.
 
 ---
 
