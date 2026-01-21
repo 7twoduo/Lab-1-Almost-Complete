@@ -14,7 +14,7 @@ import pymysql
 from flask import Flask, request
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
-SECRET_ID = os.environ.get("SECRET_ID", "lab/rds/mysqv2")
+SECRET_ID = os.environ.get("SECRET_ID", "lab/rds/mysqv4")
 
 secrets = boto3.client("secretsmanager", region_name=REGION)
 
@@ -104,7 +104,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=/opt/rdsapp
-Environment=SECRET_ID=lab/rds/mysqv2
+Environment=SECRET_ID=lab/rds/mysqv4
 ExecStart=/usr/bin/python3 /opt/rdsapp/app.py
 Restart=always
 
