@@ -1,7 +1,7 @@
 #s3 Bucket
 resource "aws_s3_bucket" "spire" {
   bucket = "aws-alb-logs-${var.Environment}-${data.aws_caller_identity.current.account_id}"
-  region = var.aws_region
+  region = data.aws_region.current.region
 
   tags = {
     Name        = "My bucket"
@@ -17,45 +17,39 @@ resource "aws_s3_bucket_policy" "lb_bucket_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-
-      # REQUIRED: ALB checks bucket ACL first
+      # Deny insecure transport (TLS-only)
       {
-        Sid    = "AWSLogDeliveryAclCheck"
-        Effect = "Allow"
-
-        Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
-        }
-
-        Action   = "s3:GetBucketAcl"
-        Resource = "arn:aws:s3:::${aws_s3_bucket.spire.id}"
-
+        Sid       = "DenyInsecureTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          "arn:aws:s3:::${aws_s3_bucket.spire.id}",
+          "arn:aws:s3:::${aws_s3_bucket.spire.id}/*"
+        ]
         Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
+          Bool = { "aws:SecureTransport" = "false" }
         }
       },
-
-      # REQUIRED: actual log delivery
+      # REQUIRED: ALB access logs - uses regional ELB service account
       {
-        Sid    = "AWSLogDeliveryWrite"
+        Sid    = "AllowELBLogDelivery"
         Effect = "Allow"
-
         Principal = {
-          Service = "logdelivery.elasticloadbalancing.amazonaws.com"
+          AWS = data.aws_elb_service_account.main.arn
         }
-
-        Action = "s3:PutObject"
-
-        Resource = "arn:aws:s3:::${aws_s3_bucket.spire.id}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
-
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl"      = "bucket-owner-full-control"
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
+        Action   = "s3:PutObject"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.spire.id}/${var.alb_access_logs_prefix}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+      },
+      # ALB access logs via service principal (recommended for newer regions)
+      {
+        Sid    = "AllowELBPutObject"
+        Effect = "Allow"
+        Principal = {
+          Service = "elasticloadbalancing.amazonaws.com"
         }
+        Action   = "s3:PutObject"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.spire.id}/${var.alb_access_logs_prefix}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
       }
     ]
   })
@@ -135,6 +129,20 @@ resource "aws_route53domains_registered_domain" "unshieldedhollow" {
     name = aws_route53_zone.primary.name_servers[3]
   }
 }
+#              Use this or the other one above, this one below is better since its compact
+#              the other one above is more descriptive
+/*
+resource "aws_route53domains_registered_domain" "wisdomseekers" {
+  domain_name = var.root_domain_name
+
+  dynamic "name_server" {
+    for_each = aws_route53_zone.primary.name_servers
+    content {
+      name = name_server.value
+    }
+  }
+}
+*/
 resource "aws_acm_certificate" "hidden_target_group2" {
   domain_name       = var.root_domain_name
   validation_method = "DNS"
@@ -330,7 +338,7 @@ resource "aws_cloudwatch_dashboard" "chewbacca_dashboard01" {
           ]
           period = 300
           stat   = "Sum"
-          region = var.aws_region
+          region = data.aws_region.current.region
           title  = "Chewbacca ALB: Requests + 5XX"
         }
       },
@@ -346,7 +354,7 @@ resource "aws_cloudwatch_dashboard" "chewbacca_dashboard01" {
           ]
           period = 300
           stat   = "Average"
-          region = var.aws_region
+          region = data.aws_region.current.region
           title  = "Chewbacca ALB: Target Response Time"
         }
       }
