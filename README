@@ -65,7 +65,8 @@ Destroying
 
 Make sure to clear out the s3 bucket or use ai like claude that will do it for you automatically and you should be good to go
 
-
+Beware
+S3 bucket can take 40 minutes some time in creation or more. It is an AWS side problem. I ran into that problem when deploying to a different region.
 
 ## 🎉 Enjoy the Code
 
