@@ -17,7 +17,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = "us-east-2"
 }
 
 
@@ -43,20 +43,20 @@ resource "aws_vpc" "Star" {
 
 #Public Subnet in AZ1
 resource "aws_subnet" "Star_Public_AZ1" {
-  vpc_id                  = aws_vpc.Star.id
+  vpc_id                  = local.vpc_id
   cidr_block              = var.public_subnet_cidr1
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = var.public_subnet
 
   tags = {
     Name = "Star_Public_AZ1"
   }
 }
 resource "aws_subnet" "Star_Public_AZ2" {
-  vpc_id                  = aws_vpc.Star.id
+  vpc_id                  = local.vpc_id
   cidr_block              = var.public_subnet_cidr2
-  availability_zone       = "us-east-1b"
-  map_public_ip_on_launch = true
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = var.public_subnet
 
   tags = {
     Name = "Star_Public_AZ2"
@@ -66,68 +66,55 @@ resource "aws_subnet" "Star_Public_AZ2" {
 
 #Private Subnet in AZ1
 resource "aws_subnet" "Star_Private_AZ1" {
-  vpc_id            = aws_vpc.Star.id
+  vpc_id            = local.vpc_id
   cidr_block        = var.private_subnet_cidr1
-  availability_zone = "us-east-1a"
+  availability_zone = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = var.private_subnet
 
   tags = {
     Name = "Star_Private_AZ1"
   }
 }
 resource "aws_subnet" "Star_Private_AZ2" {
-  vpc_id            = aws_vpc.Star.id
+  vpc_id            = local.vpc_id
   cidr_block        = var.private_subnet_cidr2
-  availability_zone = "us-east-1b"
+  availability_zone = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = var.private_subnet
 
   tags = {
     Name = "Star_Private_AZ2"
   }
 }
+
+
 #Internet Gateway
 resource "aws_internet_gateway" "internet" {
-  vpc_id = aws_vpc.Star.id
+  vpc_id = local.vpc_id
 
   tags = {
     Name = "Star_IGW"
   }
 }
-# resource "aws_eip" "nat" {
-#   tags = {
-#     Name = "Star_NAT_EIP"
-#   }
-# }
-# #NAT Gateway
-# resource "aws_nat_gateway" "nat_gateway" {
-#   allocation_id = aws_eip.nat.id
-#   subnet_id     = aws_subnet.Star_Public_AZ1.id
-#   depends_on    = [aws_eip.nat]
 
-#   tags = {
-#     Name = "Star_NAT_GW"
-#   }
-# }
+#Route Tables
 resource "aws_route_table" "Public" {
-  vpc_id = aws_vpc.Star.id
+  vpc_id = local.vpc_id
 
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.internet.id
   }
 }
+
 resource "aws_route_table" "Private" {
-  vpc_id = aws_vpc.Star.id
+  vpc_id = local.vpc_id
   route {
     cidr_block = aws_vpc.Star.cidr_block
     gateway_id = "local" # Change to S3 Gateway Endpoint later// No S3 Gateway Automatically creates it's routes
   }
 }
-# resource "aws_route_table" "Private" {
-#   vpc_id = aws_vpc.Star.id
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = aws_nat_gateway.nat_gateway.id # Change to S3 Gateway Endpoint later
-#   }
-# }
+
+#Route table association
 resource "aws_route_table_association" "Known" {
   for_each = {
     uno = aws_subnet.Star_Public_AZ1.id
@@ -145,11 +132,12 @@ resource "aws_route_table_association" "Secret" {
   subnet_id      = each.value
   route_table_id = aws_route_table.Private.id
 }
-#Security Group
+
+#Security Groups
 resource "aws_security_group" "RDS_SG" {
   name        = "RDS_SG"
   description = "Allow TLS inbound traffic from EC2_SG and outbound traffic to EC2_SG"
-  vpc_id      = aws_vpc.Star.id
+  vpc_id      = local.vpc_id
 
   tags = {
     Name = "RDS_SG"
@@ -158,7 +146,7 @@ resource "aws_security_group" "RDS_SG" {
 resource "aws_security_group" "Endpoint_SG" {
   name        = "Endpoint_SG"
   description = "Endpoints traffic from 80,443"
-  vpc_id      = aws_vpc.Star.id
+  vpc_id      = local.vpc_id
 
   tags = {
     Name = "Endpoint_SG"
@@ -167,7 +155,7 @@ resource "aws_security_group" "Endpoint_SG" {
 resource "aws_security_group" "EC2_SG" {
   name        = "EC2_SG"
   description = "Allow TLS inbound traffic on HTTP and RDP and all outbound traffic"
-  vpc_id      = aws_vpc.Star.id
+  vpc_id      = local.vpc_id
 
   tags = {
     Name = "EC2_SG"
@@ -397,7 +385,7 @@ resource "aws_instance" "lab-ec2-app-public" {
   instance_type               = "t3.micro"
   subnet_id                   = aws_subnet.Star_Public_AZ1.id
   security_groups             = [aws_security_group.EC2_SG.id]
-  associate_public_ip_address = true
+  associate_public_ip_address = var.public_subnet
   user_data_base64            = base64encode(file("userdata.sh"))
   #Do not associate IAM Role, it is more secure this way
 
@@ -417,7 +405,7 @@ resource "aws_ami_from_instance" "ec2_golden_ami" {
   ]
 }
 
-#Use this data block to retriev the AMI ID Once it's created instaed of calling the creation resource directly
+#Use this data block to retrieve the AMI ID Once it's created instaed of calling the creation resource directly
 data "aws_ami" "ec2_golden_ami" {
   most_recent = true
   owners      = ["self"]
@@ -433,24 +421,19 @@ data "aws_ami" "ec2_golden_ami" {
   }
   depends_on = [aws_ami_from_instance.ec2_golden_ami]
 }
-#EC2 Instance in Private Subnet from Golden AMI Launch temmplate
+#EC2 Instance in Private Subnet from Golden AMI Launch template
 resource "aws_launch_template" "lab-ec2-app-private" {
   image_id               = data.aws_ami.ec2_golden_ami.id
   instance_type          = "t3.micro"
   vpc_security_group_ids = [aws_security_group.EC2_SG.id]
   iam_instance_profile {
-    name = aws_iam_instance_profile.this.name              #Problem, use the .arn, .name  doesn't work
+    name = aws_iam_instance_profile.this.name              #Use .name
   }
     update_default_version = true
 
   tags = {
     Name = "lab-ec2-app-private"
   }
-#  depends_on = [data.aws_ami.ec2_golden_ami]
-#  depends_on = [
-#     aws_iam_instance_profile.this
-#   ]
-
 }
 
 #Placement Group for ASG
