@@ -7,6 +7,7 @@ locals {
   vpc_id         = aws_vpc.Star.id
   account_id     = data.aws_caller_identity.current.account_id
   name_prefix    = var.Environment
+  Environment    = aws_vpc.Star.tags["Name"]
 
 
 }
@@ -67,7 +68,7 @@ variable "db_username" {
   default     = "admin"
 }
 variable "sns_email" {
-  description = ""
+  description = "Put Your email below"
   type        = string
   default     = "markedsync@gmail.com"
   #Remember you have to confirm your subscription for this to work
@@ -75,7 +76,12 @@ variable "sns_email" {
 variable "secret_location" {
   description = "The location in Secrets Manager to store the RDS credentials"
   type        = string
-  default     = "lab/rds/mysqv4"
+  default     = "lab/rds/mysqv6"
+}
+variable "parameter_location" {
+  description = "The location in Parameter Store for some RDS details"
+  type        = string
+  default     = "/lab/db/"
 }
 variable "s3_bucket_no_access" {
   description = "No public access to bucket"
@@ -160,6 +166,11 @@ variable "waf_log_retention_days" {
   type        = string
   default     = "14"
 }
+variable "cloudwatch_log_retention_days" {
+  description = "The amount of days waf logs will be retained."
+  type        = string
+  default     = "7"
+}
 
 #                                           Data Blocks
 
@@ -191,7 +202,7 @@ data "aws_ami" "amazon_linux" {
 
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
-data "aws_elb_service_account" "main" {} 
+data "aws_elb_service_account" "main" {}
 data "aws_availability_zones" "available" {
   state = "available"
 }
