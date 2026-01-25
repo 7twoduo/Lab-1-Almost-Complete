@@ -1,5 +1,5 @@
 resource "aws_ssm_parameter" "port" {
-  name        = "port"
+  name        = "${var.parameter_location}port"
   description = "This is the RDS port"
   type        = "SecureString"
   value       = 3306
@@ -8,7 +8,7 @@ resource "aws_ssm_parameter" "port" {
   }
 }
 resource "aws_ssm_parameter" "host" {
-  name        = "host"
+  name        = "${var.parameter_location}host"
   description = "This is the endpoint to the RDS instance"
   type        = "SecureString"
   value       = aws_db_instance.below_the_valley.address
@@ -17,7 +17,7 @@ resource "aws_ssm_parameter" "host" {
   }
 }
 resource "aws_ssm_parameter" "db_name" {
-  name        = "db_name"
+  name        = "${var.parameter_location}db_name"
   description = "This is the name of the database within the RDS instance"
   type        = "SecureString"
   value       = aws_db_instance.below_the_valley.db_name
@@ -38,10 +38,14 @@ resource "aws_sns_topic_subscription" "email_subscription" {
   endpoint = var.sns_email
   #Remember you have to confirm your subscription for this to work
 }
-#Cloudwatch Log Group
+
+#                                 Cloud Watch Alarms
+
+
+# Cloudwatch Log Group
 resource "aws_cloudwatch_log_group" "db_logs" {
   name              = "rds/${aws_db_instance.below_the_valley.id}/error"
-  retention_in_days = 7 # Set log retention (e.g., 7 days)
+  retention_in_days = var.cloudwatch_log_retention_days
 }
 resource "aws_cloudwatch_log_metric_filter" "connection_failure_filter" {
   name           = "DBConnectionFailureFilter"
@@ -55,6 +59,39 @@ resource "aws_cloudwatch_log_metric_filter" "connection_failure_filter" {
     value     = "1"
   }
 }
+#     Cloudwatch log group for ec2
+resource "aws_cloudwatch_log_group" "ec2_health" {
+  name              = "/lab/${var.Environment}/ec2/health"
+  retention_in_days = var.cloudwatch_log_retention_days
+
+  tags = {
+    Name = "ec2-health-log-group"
+  }
+}
+
+# EC2 Alarms
+resource "aws_cloudwatch_metric_alarm" "asg_instance_unhealthy" {
+  alarm_name          = "/lab/${local.Environment}/ec2/health"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  threshold           = 1
+
+  metric_name        = "StatusCheckFailed"
+  namespace          = "AWS/EC2"
+  period             = 60
+  statistic          = "Maximum"
+  treat_missing_data = "breaching"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.bar.name
+  }
+
+  alarm_description = "Triggers when an EC2 instance fails system or instance status checks"
+  alarm_actions     = [aws_sns_topic.health_check_topic.arn]
+}
+
+
+#   RDS Alarms
 resource "aws_cloudwatch_metric_alarm" "below_the_valley_db_alarm01" {
   alarm_name          = "${local.name_prefix}-db-connection-failure"
   comparison_operator = "GreaterThanOrEqualToThreshold"
@@ -74,6 +111,7 @@ resource "aws_cloudwatch_metric_alarm" "below_the_valley_db_alarm01" {
 
   depends_on = [aws_db_instance.below_the_valley]
 }
+
 #My Custom Metric for Cloudwatch Database logs
 resource "aws_cloudwatch_metric_alarm" "connection_failure_alarm" {
   alarm_name          = "High-DB-Connection-Failure-Rate"
