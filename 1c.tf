@@ -1,6 +1,6 @@
 #s3 Bucket
 resource "aws_s3_bucket" "spire" {
-  bucket = "aws-alb-logs-${data.aws_region.current.region}-${var.Environment}-${data.aws_caller_identity.current.account_id}"
+  bucket = "aws-alb-logs-${data.aws_region.current.region}-${local.Environment}-${data.aws_caller_identity.current.account_id}"
   region = data.aws_region.current.region
 
   tags = {
@@ -57,7 +57,7 @@ resource "aws_s3_bucket_policy" "lb_bucket_policy" {
 # Use if terraform doesn't return an identifier
 # import {
 #   to = aws_lb.hidden_alb
-#   id = "arn:aws:elasticloadbalancing:us-east-1:814910273374:loadbalancer/app/LoadExternal/9b9985b57737311d"
+#   id = "arn"
 # }
 
 resource "aws_lb" "hidden_alb" {
@@ -104,10 +104,10 @@ resource "aws_lb_target_group" "hidden_target_group" {
   }
 }
 #                                   Listeners for TARGET GROUP
- import {
-   to = aws_route53domains_registered_domain.unshieldedhollow
-   id = "unshieldedhollow.click" # Your domain here
- }
+import {
+  to = aws_route53domains_registered_domain.unshieldedhollow
+  id = "unshieldedhollow.click" # Your domain here
+}
 
 
 resource "aws_route53_zone" "primary" {
@@ -250,7 +250,7 @@ resource "aws_wafv2_web_acl" "alb_waf" {
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "${var.Environment}-waf01"
+    metric_name                = "${local.Environment}-waf01"
     sampled_requests_enabled   = true
   }
 
@@ -272,13 +272,13 @@ resource "aws_wafv2_web_acl" "alb_waf" {
 
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.Environment}-waf-common"
+      metric_name                = "${local.Environment}-waf-common"
       sampled_requests_enabled   = true
     }
   }
 
   tags = {
-    Name = "${var.Environment}-waf01"
+    Name = "${local.Environment}-waf01"
   }
 }
 
@@ -293,7 +293,7 @@ resource "aws_wafv2_web_acl_association" "chewbacca_waf_assoc01" {
 # CloudWatch Alarm: ALB 5xx -> SNS
 ############################################
 resource "aws_cloudwatch_metric_alarm" "chewbacca_alb_5xx_alarm01" {
-  alarm_name          = "${var.Environment}-alb-5xx-alarm01"
+  alarm_name          = "${local.Environment}-alb-5xx-alarm01"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = var.alb_5xx_evaluation_periods
   threshold           = var.alb_5xx_threshold
@@ -310,7 +310,7 @@ resource "aws_cloudwatch_metric_alarm" "chewbacca_alb_5xx_alarm01" {
   alarm_actions = [aws_sns_topic.health_check_topic.arn]
 
   tags = {
-    Name = "${var.Environment}-alb-5xx-alarm01"
+    Name = "${local.Environment}-alb-5xx-alarm01"
   }
 }
 
@@ -320,7 +320,7 @@ resource "aws_cloudwatch_metric_alarm" "chewbacca_alb_5xx_alarm01" {
 
 # Explanation: Dashboards are your cockpit HUD — Chewbacca wants dials, not vibes.
 resource "aws_cloudwatch_dashboard" "chewbacca_dashboard01" {
-  dashboard_name = "${var.Environment}-dashboard01"
+  dashboard_name = "${local.Environment}-dashboard01"
 
   # TODO: students can expand widgets; this is a minimal workable skeleton
   dashboard_body = jsonencode({
@@ -435,11 +435,11 @@ resource "aws_cloudwatch_log_group" "star-alb-log1" {
   count = var.waf_log_destination == "cloudwatch" ? 1 : 0
 
   # NOTE: AWS requires WAF log destination names start with aws-waf-logs- (students must not rename this).
-  name              = "aws-waf-logs-${var.Environment}-webacl01"
+  name              = "aws-waf-logs-${local.Environment}-webacl01"
   retention_in_days = var.waf_log_retention_days
 
   tags = {
-    Name = "${var.Environment}-waf-log-group01"
+    Name = "${local.Environment}-waf-log-group01"
   }
 }
 
@@ -466,10 +466,10 @@ resource "aws_wafv2_web_acl_logging_configuration" "chewbacca_waf_logging01" {
 resource "aws_s3_bucket" "star_waf_bucket_uno" {
   count = var.waf_log_dest == "s3" ? 1 : 0
 
-  bucket = "aws-waf-logs-${data.aws_region.current.region}-${var.Environment}-${data.aws_caller_identity.current.account_id}"
+  bucket = "aws-waf-logs-${data.aws_region.current.region}-${local.Environment}-${data.aws_caller_identity.current.account_id}"
 
   tags = {
-    Name = "${var.Environment}-waf-logs-bucket01"
+    Name = "${local.Environment}-waf-logs-bucket01"
   }
 }
 
@@ -494,7 +494,7 @@ resource "aws_wafv2_web_acl_logging_configuration" "chewbacca_waf_logging_s3_01"
     aws_s3_bucket.star_waf_bucket_uno[0].arn
   ]
 
-  depends_on = [aws_wafv2_web_acl.alb_waf,aws_wafv2_web_acl_logging_configuration.chewbacca_waf_logging_s3_01]
+  depends_on = [aws_wafv2_web_acl.alb_waf, aws_wafv2_web_acl_logging_configuration.chewbacca_waf_logging_s3_01]
 }
 
 ############################################
@@ -505,17 +505,17 @@ resource "aws_wafv2_web_acl_logging_configuration" "chewbacca_waf_logging_s3_01"
 resource "aws_s3_bucket" "star_firehouse_waf_log" {
   count = var.firehose_log == "firehose" ? 1 : 0
 
-  bucket = "${data.aws_region.current.region}-${var.Environment}-waf-firehose-dest-${data.aws_caller_identity.current.account_id}"
+  bucket = "${data.aws_region.current.region}-${local.Environment}-waf-firehose-dest-${data.aws_caller_identity.current.account_id}"
 
   tags = {
-    Name = "${var.Environment}-waf-firehose-dest-bucket01"
+    Name = "${local.Environment}-waf-firehose-dest-bucket01"
   }
 }
 
 # Explanation: Firehose needs a role—Chewbacca doesn’t let random droids write into storage.
 resource "aws_iam_role" "star_fire_hose1" {
   count = var.firehose_log == "firehose" ? 1 : 0
-  name  = "${var.Environment}-firehose-role01"
+  name  = "${local.Environment}-firehose-role01"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -530,7 +530,7 @@ resource "aws_iam_role" "star_fire_hose1" {
 # Explanation: Minimal permissions—allow Firehose to put objects into the destination bucket.
 resource "aws_iam_role_policy" "chewbacca_firehose_policy01" {
   count = var.firehose_log == "firehose" ? 1 : 0
-  name  = "${var.Environment}-firehose-policy01"
+  name  = "${local.Environment}-firehose-policy01"
   role  = aws_iam_role.star_fire_hose1[0].id
 
   policy = jsonencode({
@@ -558,7 +558,7 @@ resource "aws_iam_role_policy" "chewbacca_firehose_policy01" {
 # Explanation: The delivery stream is the belt itself—logs move from WAF -> Firehose -> S3.
 resource "aws_kinesis_firehose_delivery_stream" "Star_Firehose_delivery1" {
   count       = var.firehose_log == "firehose" ? 1 : 0
-  name        = "aws-waf-logs-${var.Environment}-firehose01"
+  name        = "aws-waf-logs-${local.Environment}-firehose01"
   destination = "extended_s3"
 
   extended_s3_configuration {
@@ -577,7 +577,7 @@ resource "aws_wafv2_web_acl_logging_configuration" "chewbacca_waf_logging_fireho
     aws_kinesis_firehose_delivery_stream.Star_Firehose_delivery1[0].arn
   ]
 
-  depends_on = [aws_wafv2_web_acl.alb_waf,aws_wafv2_web_acl_logging_configuration.chewbacca_waf_logging_s3_01]
+  depends_on = [aws_wafv2_web_acl.alb_waf, aws_wafv2_web_acl_logging_configuration.chewbacca_waf_logging_s3_01]
 }
 
 
